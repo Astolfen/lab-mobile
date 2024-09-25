@@ -1,7 +1,5 @@
 package com.example.lab4;
 
-
-import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -18,7 +16,6 @@ import com.example.lab4.database.AppDatabase;
 import com.example.lab4.entity.CharacterEntity;
 import com.squareup.picasso.Picasso;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 

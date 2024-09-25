@@ -26,7 +26,7 @@ public class SimpleStringAdapter extends RecyclerView.Adapter<SimpleStringAdapte
     @NonNull
     @Override
     public SimpleStringAdapter.StringViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        LayoutInflater layoutInflater = LayoutInflater.from(parent.getContext());
+        LayoutInflater layoutInflater = LayoutInflater.from(context);
         return new SimpleStringAdapter.StringViewHolder(layoutInflater.inflate(R.layout.simple_list_item, parent, false));
     }
 

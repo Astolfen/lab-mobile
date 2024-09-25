@@ -32,6 +32,8 @@ public class MainActivity extends AppCompatActivity {
     private CharacterAdapter characterAdapter;
     private List<CharacterEntity> characterList = new ArrayList<>();
     private OkHttpClient client;
+
+    private AppDatabase db;
     private static final String TAG = "MainActivity";
 
     @Override
@@ -45,6 +47,8 @@ public class MainActivity extends AppCompatActivity {
 
         characterAdapter = new CharacterAdapter(characterList, this);
         recyclerView.setAdapter(characterAdapter);
+
+        db = AppDatabase.getInstance(getApplicationContext());
 
         loadCharacters();
     }
@@ -62,10 +66,9 @@ public class MainActivity extends AppCompatActivity {
             client.newCall(request).enqueue(new Callback() {
                 @Override
                 public void onFailure(Call call, IOException e) {
-                    runOnUiThread(() -> {
-                        Log.e(TAG, "Failed to fetch data", e);
-                        loadCharactersFromDb();
-                    });
+                    Log.e(TAG, "Failed to fetch data", e);
+                    loadCharactersFromDb();
+                    runOnUiThread(() -> characterAdapter.notifyDataSetChanged());
                 }
 
                 @Override
@@ -78,7 +81,6 @@ public class MainActivity extends AppCompatActivity {
                             JSONObject jsonObject = new JSONObject(jsonResponse);
                             JSONArray dataArray = jsonObject.getJSONArray("data");
 
-                            List<CharacterEntity> characters = new ArrayList<>();
                             for (int i = 0; i < dataArray.length(); i++) {
                                 JSONObject characterObject = dataArray.getJSONObject(i);
 
@@ -89,6 +91,7 @@ public class MainActivity extends AppCompatActivity {
                                 }
 
                                 CharacterEntity character = new CharacterEntity();
+                                character.setId(characterObject.getInt("_id"));
                                 character.setName(name);
                                 character.setImageUrl(imageUrl);
                                 character.setMovies(characterObject.optString("films"));
@@ -97,14 +100,10 @@ public class MainActivity extends AppCompatActivity {
                                 character.setVideoGames(characterObject.optString("videoGames"));
                                 character.setParkAttractions(characterObject.optString("parkAttractions"));
 
-                                characters.add(character);
+                                characterList.add(character);
+                                db.characterDao().insertCharacter(character);
                             }
-
-                            runOnUiThread(() -> {
-                                updateRecyclerView(characters);
-                                saveCharactersToDb(characters);
-                            });
-
+                            runOnUiThread(() -> characterAdapter.notifyDataSetChanged());
                         } catch (JSONException e) {
                             Log.e(TAG, "Failed to parse JSON", e);
                         }
@@ -114,33 +113,9 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void updateRecyclerView(List<CharacterEntity> characters) {
-        characterList.addAll(characters);
-        characterAdapter.notifyDataSetChanged();
-    }
-
-    private void saveCharactersToDb(List<CharacterEntity> characters) {
-        new Thread(() -> {
-            AppDatabase db = AppDatabase.getInstance(getApplicationContext());
-            for (CharacterEntity character : characters) {
-                character.setId((int) db.characterDao().insertCharacter(character));
-            }
-
-        }).start();
-    }
-
     private void loadCharactersFromDb() {
-        new Thread(() -> {
-            AppDatabase db = AppDatabase.getInstance(getApplicationContext());
-            List<CharacterEntity> characters = db.characterDao().getAllCharacters();
-            runOnUiThread(() -> {
-                if (characters != null && !characters.isEmpty()) {
-                    updateRecyclerView(characters);
-                } else {
-                    Log.e(TAG, "No data available");
-                }
-            });
-        }).start();
+        characterList.clear();
+        characterList.addAll(db.characterDao().getAllCharacters());
     }
 
 }

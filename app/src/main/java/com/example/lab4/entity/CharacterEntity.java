@@ -1,17 +1,13 @@
 package com.example.lab4.entity;
 
-import androidx.annotation.NonNull;
 import androidx.room.Entity;
 import androidx.room.PrimaryKey;
 
-import org.jetbrains.annotations.NotNull;
-
-import java.util.List;
 
 @Entity(tableName = "characters")
 public class CharacterEntity {
 
-    @PrimaryKey(autoGenerate = true)
+    @PrimaryKey(autoGenerate = false)
     private int id;
     private String name;
     private String imageUrl;
