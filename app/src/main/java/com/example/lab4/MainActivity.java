@@ -4,6 +4,7 @@ import android.os.Bundle;
 import android.util.Log;
 
 import androidx.activity.EdgeToEdge;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -36,6 +37,10 @@ public class MainActivity extends AppCompatActivity {
     private AppDatabase db;
     private static final String TAG = "MainActivity";
 
+    private String url = "https://api.disneyapi.dev/character";
+
+    private boolean hasNetwork = true;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -51,66 +56,97 @@ public class MainActivity extends AppCompatActivity {
         db = AppDatabase.getInstance(getApplicationContext());
 
         loadCharacters();
+
+        recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
+                super.onScrolled(recyclerView, dx, dy);
+
+                LinearLayoutManager layoutManager = (LinearLayoutManager) recyclerView.getLayoutManager();
+
+                if (dy > 0) {
+                    int totalItemCount = layoutManager.getItemCount();
+                    int lastVisibleItem = layoutManager.findLastVisibleItemPosition();
+                    int visibleThreshold = 5;
+
+                    if (url != null && totalItemCount <= (lastVisibleItem + visibleThreshold)) {
+                        loadCharacters();
+                    }
+                }
+            }
+        });
     }
 
     private void loadCharacters() {
+
         client = new OkHttpClient();
-        int countPage = 149;//149
-        for (int i = 1; i <= countPage; i++) {
-            String url = "https://api.disneyapi.dev/character?page=" + i;
 
-            Request request = new Request.Builder()
-                    .url(url)
-                    .build();
+        Request request = new Request.Builder()
+                .url(url)
+                .build();
 
-            client.newCall(request).enqueue(new Callback() {
-                @Override
-                public void onFailure(Call call, IOException e) {
+        client.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                if (hasNetwork) {
+                    hasNetwork = false;
                     Log.e(TAG, "Failed to fetch data", e);
                     loadCharactersFromDb();
-                    runOnUiThread(() -> characterAdapter.notifyDataSetChanged());
+                    characterAdapter.notifyDataSetChanged();
                 }
+            }
 
-                @Override
-                public void onResponse(Call call, Response response) throws IOException {
-                    if (response.isSuccessful()) {
-                        String jsonResponse = response.body().string();
-                        Log.d(TAG, "Response: " + jsonResponse);
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                if (response.isSuccessful()) {
+                    hasNetwork = true;
+                    String jsonResponse = response.body().string();
+                    Log.d(TAG, "Response: " + jsonResponse);
 
-                        try {
-                            JSONObject jsonObject = new JSONObject(jsonResponse);
-                            JSONArray dataArray = jsonObject.getJSONArray("data");
+                    try {
+                        JSONObject jsonObject = new JSONObject(jsonResponse);
 
-                            for (int i = 0; i < dataArray.length(); i++) {
-                                JSONObject characterObject = dataArray.getJSONObject(i);
-
-                                String name = characterObject.getString("name");
-                                String imageUrl = "https://yt3.googleusercontent.com/iRLpuvr-WoAkDmOmXQiVnk7Gf4knJ6_OmIqZRmal4FeFxwbPLkMwIWm4QZlvH9t2GojQWZ4P=s900-c-k-c0x00ffffff-no-rj";
-                                if (characterObject.has("imageUrl")) {
-                                    imageUrl = characterObject.getString("imageUrl");
-                                }
-
-                                CharacterEntity character = new CharacterEntity();
-                                character.setId(characterObject.getInt("_id"));
-                                character.setName(name);
-                                character.setImageUrl(imageUrl);
-                                character.setMovies(characterObject.optString("films"));
-                                character.setShortFilms(characterObject.optString("shortFilms"));
-                                character.setTvShows(characterObject.optString("tvShows"));
-                                character.setVideoGames(characterObject.optString("videoGames"));
-                                character.setParkAttractions(characterObject.optString("parkAttractions"));
-
-                                characterList.add(character);
-                                db.characterDao().insertCharacter(character);
-                            }
-                            runOnUiThread(() -> characterAdapter.notifyDataSetChanged());
-                        } catch (JSONException e) {
-                            Log.e(TAG, "Failed to parse JSON", e);
+                        JSONObject jsonInfo = jsonObject.getJSONObject("info");
+                        String nextPageUrl = jsonInfo.optString("nextPage", null);
+                        if (nextPageUrl != null) {
+                            url = nextPageUrl;
+                            Log.w(TAG, url);
+                        } else {
+                            Log.w(TAG, "nulllllll");
+                            url = null;
                         }
+
+                        JSONArray dataArray = jsonObject.getJSONArray("data");
+
+                        for (int i = 0; i < dataArray.length(); i++) {
+                            JSONObject characterObject = dataArray.getJSONObject(i);
+
+                            String name = characterObject.getString("name");
+                            String imageUrl = "https://yt3.googleusercontent.com/iRLpuvr-WoAkDmOmXQiVnk7Gf4knJ6_OmIqZRmal4FeFxwbPLkMwIWm4QZlvH9t2GojQWZ4P=s900-c-k-c0x00ffffff-no-rj";
+                            if (characterObject.has("imageUrl")) {
+                                imageUrl = characterObject.getString("imageUrl");
+                            }
+
+                            CharacterEntity character = new CharacterEntity();
+                            character.setId(characterObject.getInt("_id"));
+                            character.setName(name);
+                            character.setImageUrl(imageUrl);
+                            character.setMovies(characterObject.optString("films"));
+                            character.setShortFilms(characterObject.optString("shortFilms"));
+                            character.setTvShows(characterObject.optString("tvShows"));
+                            character.setVideoGames(characterObject.optString("videoGames"));
+                            character.setParkAttractions(characterObject.optString("parkAttractions"));
+
+                            characterList.add(character);
+                            db.characterDao().insertCharacter(character);
+                        }
+                        runOnUiThread(() -> characterAdapter.notifyDataSetChanged());
+                    } catch (JSONException e) {
+                        Log.e(TAG, "Failed to parse JSON", e);
                     }
                 }
-            });
-        }
+            }
+        });
     }
 
     private void loadCharactersFromDb() {

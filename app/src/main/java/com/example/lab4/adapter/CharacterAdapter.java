@@ -3,6 +3,7 @@ package com.example.lab4.adapter;
 
 import android.content.Context;
 import android.content.Intent;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -38,6 +39,7 @@ public class CharacterAdapter extends RecyclerView.Adapter<CharacterAdapter.Char
 
     @Override
     public void onBindViewHolder(@NonNull CharacterAdapter.CharacterViewHolder holder, int position) {
+        Log.w("TAG", String.valueOf(position) );
         CharacterEntity character = characterList.get(position);
         holder.characterName.setText(character.getName());
         Picasso.get()
